@@ -7,66 +7,54 @@ if (is_logged_in()) { header('Location:/index.php'); exit; }
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>⚡ Lykan Login</title>
+<title>Onyx — Login</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-body {
-  background: radial-gradient(circle at 50% 50%, #0f0f0f, #1a1a1a);
-  font-family: 'Inter', sans-serif;
-}
-.glass {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  backdrop-filter: blur(25px);
-  border-radius: 2rem;
-  box-shadow:
-    0 0 50px rgba(255, 50, 50, 0.4),
-    inset 0 0 20px rgba(255,255,255,0.05);
-  transform: perspective(800px) rotateX(3deg);
-}
-.btn-primary {
-  background: linear-gradient(90deg, #ff1f1f, #ff6b6b);
-  font-weight: 700;
-  color: #fff;
-  border-radius: 1rem;
-  transition: transform .3s ease, box-shadow .3s ease;
-}
-.btn-primary:hover {
-  transform: scale(1.05) translateZ(5px);
-  box-shadow: 0 0 20px rgba(255,31,31,0.6);
-}
-.neon {
-  text-shadow:
-    0 0 8px rgba(255,31,31,0.9),
-    0 0 20px rgba(255,31,31,0.7),
-    0 0 30px rgba(255,31,31,0.5);
-}
+body{background:radial-gradient(circle at 30% 30%,#1f1f1f,#0b0b0b);font-family:'Inter',sans-serif;min-height:100vh;}
+.card{background:rgba(255,255,255,0.05);backdrop-filter:blur(15px);border-radius:2rem;padding:2rem;box-shadow:0 20px 40px rgba(0,0,0,.6);}
+h1{font-size:3rem;font-weight:800;color:#fff;text-shadow:0 0 15px #ff1f1f;}
+.btn{display:inline-block;width:100%;padding:1rem 2rem;border-radius:1rem;font-size:1.2rem;
+background:linear-gradient(135deg,#ff1f1f,#ff6b6b);color:#fff;font-weight:700;transition:all .3s;}
+.btn:hover{transform:scale(1.05);}
 </style>
 </head>
-<body class="flex items-center justify-center min-h-screen px-4">
-<div id="loginBox" class="glass p-10 max-w-md w-full space-y-8 text-center animate-fade-in">
-  <h1 class="text-5xl md:text-6xl font-extrabold neon">⚡ Lykan</h1>
-  <p class="text-white/70 text-lg">Secure login via Telegram WebApp — speed &amp; style</p>
-  <div id="alert" class="text-red-400 font-semibold"></div>
-  <button id="tgLoginBtn" class="w-full px-5 py-4 btn-primary shadow-lg">
-    🔐 Login with Telegram
-  </button>
-</div>
-<form id="tgForm" method="post" action="/tg_auth.php" style="display:none;">
-  <input type="hidden" name="tg_init_data" id="tg_init_data"/>
-</form>
-
+<body class="flex items-center justify-center">
+  <div class="card w-full max-w-md text-center">
+    <h1>⚡ Onyx</h1>
+    <p class="text-gray-300 mb-4">Secure login via Telegram Web App</p>
+    <div id="alert" class="text-red-400 font-semibold mb-2"></div>
+    <button id="tgLoginBtn" class="btn">🔐 Login with Telegram</button>
+  </div>
 <script>
 const tg = window.Telegram?.WebApp;
-if(!tg || !tg.initData){
-  document.getElementById('alert').innerText =
-    "❌ Telegram initData not found. Please open this page from the Telegram WebApp button.";
+if (!tg) {
+  document.getElementById('alert').innerText = "❌ Open inside Telegram Web App!";
 } else {
   tg.ready(); tg.expand();
-  document.getElementById('tgLoginBtn').addEventListener('click', ()=>{
-    document.getElementById('tg_init_data').value = tg.initData;
-    document.getElementById('tgForm').submit();
+  document.getElementById('tgLoginBtn').addEventListener('click', () => {
+    const u = tg.initDataUnsafe?.user;
+    if (!u) {
+      document.getElementById('alert').innerText = "❌ Telegram user data missing!";
+      return;
+    }
+    const payload = {
+      id: u.id,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      username: u.username,
+      photo_url: u.photo_url,
+      auth_date: tg.initDataUnsafe.auth_date,
+      hash: tg.initDataUnsafe.hash
+    };
+    fetch('/tg_auth.php', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).then(r=>r.json()).then(res=>{
+      if(res.ok){ window.location.href='/index.php'; }
+      else{ document.getElementById('alert').innerText="❌ "+res.error; }
+    }).catch(e=>{document.getElementById('alert').innerText='Error: '+e;});
   });
 }
 </script>
