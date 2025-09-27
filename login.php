@@ -28,7 +28,7 @@ body { background: linear-gradient(135deg,#0f0f0f,#1a1a1a); font-family:'Inter',
 </div>
 
 <form id="tgForm" method="POST" action="tg_auth.php" style="display:none;">
-    <input type="hidden" name="tg_init_data" id="tg_init_data"/>
+    <input type="hidden" name="tg_data" id="tg_data"/>
 </form>
 
 <script>
@@ -38,12 +38,12 @@ if(!tg){
 }else{
     tg.ready(); tg.expand();
     document.getElementById('tgLoginBtn').addEventListener('click',()=>{
-        const initData=tg.initData;
-        if(!initData){
-            document.getElementById('alert').innerText="❌ Telegram initData missing!";
+        const data = JSON.stringify(tg.initDataUnsafe || {});
+        if(!data){
+            document.getElementById('alert').innerText="❌ Telegram data missing!";
             return;
         }
-        document.getElementById('tg_init_data').value=initData;
+        document.getElementById('tg_data').value=data;
         document.getElementById('tgForm').submit();
     });
 }
