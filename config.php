@@ -11,9 +11,9 @@ define('DB_PASS', '5V(_9EsBo89mu4U(Yx');
 define('DB_DSN', 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4');
 
 // ---- Telegram Bot details (OAuth) ----
-define('BOT_ID', 7696619693); 
-define('BOT_USERNAME', 'YOUR_BOT_USERNAME'); 
-define('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN'); 
+define('BOT_ID', 8119958295); 
+define('BOT_USERNAME', '@LOGINTOWEBBOT'); 
+define('TELEGRAM_BOT_TOKEN', '8437832185:AAGql93tVpSyJtXQJwmLPvqcuVZpD6YtYy8'); 
 
 // ---- Detect SITE_ORIGIN dynamically ----
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
