@@ -15,7 +15,10 @@ define('BOT_ID', 8437832185);
 define('BOT_USERNAME', 'LOGINTOWEBBOT');
 define('TELEGRAM_BOT_TOKEN', '8437832185:AAGql93tVpSyJtXQJwmLPvqcuVZpD6YtYy8');
 
-define('SITE_ORIGIN', 'https://php-c9c76.wasmer.app');  // MUST match BotFather /setdomain
+// ---- Detect SITE_ORIGIN dynamically ----
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+define('SITE_ORIGIN', $protocol . $host);
 define('RETURN_TO', SITE_ORIGIN . '/tg_return.php');
 
 // ---- Tables ----
@@ -55,15 +58,12 @@ function pdo() {
 function is_logged_in() {
     return !empty($_SESSION['uid']) && isset($_SESSION['tgid']) && $_SESSION['tgid'] !== '';
 }
-
 function require_login() {
     if (!is_logged_in()) { header('Location: /login.php'); exit; }
 }
-
 function is_admin() {
     return !empty($_SESSION['role']) && $_SESSION['role'] === 'admin';
 }
-
 function require_admin() {
     if (!is_admin()) { header('Location: /index.php'); exit; }
 }
@@ -85,6 +85,7 @@ function verifyTelegramAuth($data) {
     $secret_key = hash('sha256', TELEGRAM_BOT_TOKEN, true);
     $hmac = hash_hmac('sha256', $data_check_string, $secret_key);
 
+    // optional freshness check 24h
     if (isset($data['auth_date']) && time() - (int)$data['auth_date'] > 86400) return false;
 
     return hash_equals($hmac, $check);
@@ -209,4 +210,3 @@ function claim_key($kcode,$user_id){
         return false;
     }
 }
-?>
