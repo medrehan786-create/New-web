@@ -2,13 +2,16 @@
 require __DIR__ . '/config.php';
 header('Content-Type: application/json');
 
-$raw  = file_get_contents('php://input');
-$data = json_decode($raw, true);
+$raw = file_get_contents('php://input');
+$post = json_decode($raw,true);
 
-if (empty($data) || !isset($data['id'])) {
-    echo json_encode(['ok'=>false,'error'=>'No Telegram data received']);
+if (empty($post['init_data'])) {
+    echo json_encode(['ok'=>false,'error'=>'No Telegram data']);
     exit;
 }
+
+// parse & verify exactly as Telegram docs:
+parse_str($post['init_data'],$data);
 
 if (!verifyTelegramAuth($data)) {
     echo json_encode(['ok'=>false,'error'=>'Invalid Telegram signature']);
@@ -24,9 +27,8 @@ $user = upsert_user_from_tg([
     'auth_date'=>$data['auth_date']??time()
 ]);
 
-$_SESSION['uid']  = $user['id'];
-$_SESSION['tgid'] = $user['telegram_id'];
-$_SESSION['role'] = $user['role'];
+$_SESSION['uid']=$user['id'];
+$_SESSION['tgid']=$user['telegram_id'];
+$_SESSION['role']=$user['role'];
 
 echo json_encode(['ok'=>true]);
-exit;
