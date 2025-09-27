@@ -11,7 +11,7 @@ define('DB_PASS', '5V(_9EsBo89mu4U(Yx');
 define('DB_DSN', 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4');
 
 // ---- Telegram Bot details (OAuth) ----
-define('BOT_ID', 8119958295); 
+define('BOT_ID', 8437832185); 
 define('BOT_USERNAME', '@LOGINTOWEBBOT'); 
 define('TELEGRAM_BOT_TOKEN', '8437832185:AAGql93tVpSyJtXQJwmLPvqcuVZpD6YtYy8'); 
 
