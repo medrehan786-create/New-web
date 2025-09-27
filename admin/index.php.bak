@@ -1,0 +1,110 @@
+<?php
+require __DIR__ . '/../config.php';
+require_login();
+require_admin();
+
+$pdo = pdo();
+
+// Handle flash
+$flash = $_SESSION['flash'] ?? '';
+unset($_SESSION['flash']);
+
+// Totals
+$tot_users   = (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
+$global_live = (int)$pdo->query('SELECT COALESCE(SUM(lives_total),0) FROM users')->fetchColumn();
+
+// Recent users
+$sql = "SELECT id,username,first_name,last_name,photo_url,credits,checks_total,lives_total,
+               DATE_FORMAT(premium_until,'%Y-%m-%d %H:%i') AS premium_until,role
+        FROM users ORDER BY id DESC LIMIT 50";
+$users = $pdo->query($sql)->fetchAll();
+?>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Lykan — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(135deg,#0f172a,#1e293b 60%,#0f172a); min-height:100vh; font-family:Inter,sans-serif; }
+    .glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(16px); }
+    .card-hover:hover { transform: translateY(-4px); transition: all .2s ease; box-shadow: 0 20px 40px rgba(0,0,0,.3); }
+    th,td{padding:0.5rem;text-align:left;}
+  </style>
+</head>
+<body class="text-white">
+<header class="p-6 flex justify-between items-center">
+  <h1 class="text-2xl font-extrabold">⚡ Lykan Admin</h1>
+  <div class="flex gap-2">
+    <a href="/index.php" class="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20">User View</a>
+    <a href="/logout.php" class="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20">Logout</a>
+  </div>
+</header>
+<main class="p-6 max-w-7xl mx-auto space-y-8">
+  <?php if ($flash): ?>
+    <div class="glass px-4 py-3 rounded-xl border border-white/20 text-sm"><?= htmlspecialchars($flash, ENT_QUOTES) ?></div>
+  <?php endif; ?>
+
+  <div class="grid md:grid-cols-3 gap-6">
+    <div class="glass card-hover p-6 rounded-2xl border border-white/10">
+      <div class="text-sm text-white/60">Total Users</div>
+      <div class="text-4xl font-bold mt-2"><?= $tot_users ?></div>
+    </div>
+    <div class="glass card-hover p-6 rounded-2xl border border-white/10">
+      <div class="text-sm text-white/60">Global Live</div>
+      <div class="text-4xl font-bold mt-2"><?= $global_live ?></div>
+    </div>
+    <div class="glass card-hover p-6 rounded-2xl border border-white/10">
+      <div class="text-sm text-white/60">Actions</div>
+      <div class="text-white/70 text-sm mt-2">Manage credits, premium, and keys.</div>
+    </div>
+  </div>
+
+  <!-- Generate Keys -->
+  <div class="glass card-hover p-6 rounded-2xl border border-white/10">
+    <h2 class="text-lg font-semibold mb-3">🔑 Generate Keys</h2>
+    <form method="post" action="/admin/actions.php" class="grid md:grid-cols-4 gap-3">
+      <input name="credits" type="number" placeholder="Credits" class="px-4 py-2 rounded-xl bg-white/10 border border-white/20" required>
+      <input name="days" type="number" placeholder="Days" class="px-4 py-2 rounded-xl bg-white/10 border border-white/20" required>
+      <input name="count" type="number" value="1" placeholder="Count" class="px-4 py-2 rounded-xl bg-white/10 border border-white/20">
+      <input type="hidden" name="act" value="gen_keys">
+      <button class="px-4 py-2 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/40 hover:bg-fuchsia-500/30">Generate</button>
+    </form>
+    <?php if (!empty($_SESSION['gen_keys'])): $list=$_SESSION['gen_keys']; unset($_SESSION['gen_keys']); ?>
+      <div class="mt-4 grid md:grid-cols-2 gap-2">
+        <?php foreach ($list as $k): ?>
+          <div class="px-3 py-2 rounded-xl bg-white/10 border border-white/20 font-mono text-xs select-all"><?= htmlspecialchars($k, ENT_QUOTES) ?></div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </div>
+
+  <!-- Users -->
+  <div class="glass card-hover p-6 rounded-2xl border border-white/10 overflow-auto">
+    <h2 class="text-lg font-semibold mb-3">👥 Users</h2>
+    <table class="w-full text-sm border-collapse">
+      <thead class="text-white/70 border-b border-white/20">
+        <tr>
+          <th>ID</th><th>Name</th><th>User</th><th>Credits</th><th>Checks</th><th>Lives</th><th>Premium</th><th>Role</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php foreach ($users as $r): ?>
+        <tr class="border-t border-white/10 hover:bg-white/5">
+          <td><?= $r['id'] ?></td>
+          <td><?= htmlspecialchars(trim(($r['first_name'] ?? '').' '.($r['last_name'] ?? '')), ENT_QUOTES) ?></td>
+          <td>@<?= htmlspecialchars($r['username'] ?? '—', ENT_QUOTES) ?></td>
+          <td><?= $r['credits'] ?></td>
+          <td><?= $r['checks_total'] ?></td>
+          <td><?= $r['lives_total'] ?></td>
+          <td><?= htmlspecialchars($r['premium_until'] ?? '—', ENT_QUOTES) ?></td>
+          <td><?= $r['role'] ?></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>
