@@ -1,0 +1,25 @@
+<?php
+require __DIR__ . '/config.php';
+
+// Telegram WebApp sends JSON user data
+$data = json_decode(file_get_contents("php://input"), true);
+
+if (!$data || !isset($data['id'])) {
+    echo json_encode(['ok'=>false,'err'=>'no_data']); exit;
+}
+
+// Save or update
+$u = upsert_user_from_tg([
+  'id'        => $data['id'],
+  'username'  => $data['username'] ?? null,
+  'first_name'=> $data['first_name'] ?? null,
+  'last_name' => $data['last_name'] ?? null,
+  'photo_url' => $data['photo_url'] ?? null,
+  'auth_date' => time()
+]);
+
+$_SESSION['uid']  = $u['id'];
+$_SESSION['tgid'] = $u['telegram_id'];
+$_SESSION['role'] = $u['role'];
+
+echo json_encode(['ok'=>true]);
