@@ -1,18 +1,21 @@
 <?php
 require __DIR__.'/config.php';
 
-if($_SERVER['REQUEST_METHOD']!=='POST' || empty($_POST['tg_init_data'])){
+if($_SERVER['REQUEST_METHOD']!=='POST' || empty($_POST['tg_data'])){
     header('Content-Type: application/json');
     echo json_encode(['ok'=>false,'error'=>'No Telegram data received']);
     exit;
 }
 
-$initData = $_POST['tg_init_data'];
-parse_str($initData,$data);
+$data = json_decode($_POST['tg_data'], true);
+if(!$data || !isset($data['id'])){
+    echo json_encode(['ok'=>false,'error'=>'Invalid Telegram data']);
+    exit;
+}
 
-if(!verifyTelegramAuth($data)){
-    header('Content-Type: application/json');
-    echo json_encode(['ok'=>false,'error'=>'Invalid Telegram signature']);
+// Optional: verify auth_date (24h)
+if(isset($data['auth_date']) && time() - (int)$data['auth_date'] > 86400){
+    echo json_encode(['ok'=>false,'error'=>'Telegram data expired']);
     exit;
 }
 
