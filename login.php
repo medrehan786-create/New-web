@@ -1,114 +1,143 @@
 <?php
+// login.php
 require __DIR__ . '/config.php';
-if (is_logged_in()) { header('Location:/index.php'); exit; }
+session_start();
 
-$error = '';
-
-function verify_init_data($initData) {
-    parse_str($initData, $data);
-    if (!isset($data['hash'])) return false;
-
-    $check_hash = $data['hash'];
-    unset($data['hash']);
-
-    ksort($data);
-    $data_check_arr = [];
-    foreach ($data as $k => $v) { $data_check_arr[] = $k.'='.$v; }
-    $data_check_string = implode("\n", $data_check_arr);
-
-    $secret_key = hash('sha256', TELEGRAM_BOT_TOKEN, true);
-    $hmac = hash_hmac('sha256', $data_check_string, $secret_key);
-
-    return hash_equals($hmac, $check_hash) ? $data : false;
-}
-
-// Only allow POST from Telegram WebApp with valid initData
-if ($_SERVER['REQUEST_METHOD']==='POST' && !empty($_POST['tg_init_data'])) {
-    $userData = verify_init_data($_POST['tg_init_data']);
-    if (!$userData) {
-        die("❌ Invalid Telegram authentication!");
-    }
-
-    $pdo = pdo();
-    $tgid = $userData['id'];
-
-    // Check if user exists
-    $st = $pdo->prepare("SELECT * FROM users WHERE telegram_user_id=?");
-    $st->execute([$tgid]);
-    $user = $st->fetch();
-
-    if ($user) {
-        $upd = $pdo->prepare("UPDATE users SET last_login_at=NOW() WHERE id=?");
-        $upd->execute([$user['id']]);
-    } else {
-        $ins = $pdo->prepare("INSERT INTO users
-            (telegram_user_id, username, first_name, last_name, photo_url, auth_date, last_login_at)
-            VALUES (:id, :username, :first_name, :last_name, :photo, :auth_date, NOW())");
-        $ins->execute([
-            ':id' => $userData['id'],
-            ':username' => $userData['username'] ?? null,
-            ':first_name' => $userData['first_name'] ?? null,
-            ':last_name' => $userData['last_name'] ?? null,
-            ':photo' => $userData['photo_url'] ?? null,
-            ':auth_date' => $userData['auth_date'] ?? null
-        ]);
-        $user = load_user_by_id($pdo->lastInsertId());
-    }
-
-    // Login
-    $_SESSION['uid'] = $user['id'];
-    $_SESSION['tgid'] = $user['telegram_user_id'];
-    $_SESSION['role'] = $user['role'];
-    header('Location:/index.php'); exit;
+if (is_logged_in()) {
+    header('Location: /index.php');
+    exit;
 }
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Onyx Telegram Login</title>
+<title>Onyx — Telegram Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-body{ background: linear-gradient(135deg,#0f0f0f,#1a1a1a); font-family:'Inter',sans-serif; }
-.glass{ background: rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px); border-radius:2rem; box-shadow: 0 0 25px rgba(255,31,31,0.3);}
-.btn-primary{ background: linear-gradient(90deg,#ff1f1f,#ff6b6b); font-weight:700;color:#fff; transition: all 0.3s ease; }
-.btn-primary:hover{ transform: scale(1.05); filter: brightness(1.1);}
-.neon{ text-shadow:0 0 8px rgba(255,31,31,0.9),0 0 20px rgba(255,31,31,0.7),0 0 30px rgba(255,31,31,0.5);}
+  body { font-family: 'Inter', sans-serif; background: radial-gradient(1000px 600px at 10% 10%, #240000 0%, #070707 35%, #050505 100%); color: #eee; }
+  .glass { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,31,31,0.07); backdrop-filter: blur(10px); }
+  .neon { text-shadow: 0 0 12px rgba(255,31,31,0.9), 0 0 28px rgba(255,31,31,0.5) }
+  .btn-primary { background: linear-gradient(90deg,#ff1f1f,#ff6b6b); color: #0b0b0b; font-weight: 800; }
+  .small-muted { color: rgba(255,255,255,0.65) }
+  .accent { color:#ffb0b0 }
 </style>
 </head>
-<body class="flex items-center justify-center min-h-screen px-4">
+<body class="min-h-screen flex items-center justify-center p-6">
 
-<div id="loginBox" class="glass p-10 max-w-md w-full space-y-8 text-center">
-    <h1 class="text-6xl font-extrabold neon">Onyx</h1>
-    <p class="text-white/70 text-lg">Login only via Telegram Web App</p>
-    <div id="alert" class="text-red-400 font-semibold"></div>
-    <button id="tgLoginBtn" class="w-full px-5 py-4 btn-primary rounded-2xl shadow-lg hover:brightness-105">
-        🔐 Login with Telegram
-    </button>
+<!-- Container -->
+<div class="max-w-3xl w-full grid md:grid-cols-2 gap-8 items-center">
+  <!-- Left: Branding -->
+  <div class="glass p-8 rounded-3xl shadow-2xl">
+    <div class="flex items-center gap-4">
+      <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-red-700 to-red-400 flex items-center justify-center text-3xl font-extrabold neon">⚡</div>
+      <div>
+        <div class="text-3xl font-extrabold neon">Onyx — <span class="accent">GOD LEVEL</span></div>
+        <div class="text-sm small-muted mt-1">Secure login via Telegram Web App — built for speed & style</div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <p class="text-sm small-muted">Benefits:</p>
+      <ul class="mt-3 space-y-2 text-sm">
+        <li>• Passwordless Telegram-auth (secure HMAC verification)</li>
+        <li>• Auto account upsert & session setup</li>
+        <li>• Works in Telegram Web App, or via redirect fallback</li>
+      </ul>
+    </div>
+
+    <div class="mt-6 flex gap-3">
+      <button id="tgLoginBtn" class="btn-primary px-6 py-3 rounded-2xl shadow-lg w-full">🔐 Login with Telegram</button>
+    </div>
+
+    <div id="status" class="mt-4 text-xs small-muted"></div>
+  </div>
+
+  <!-- Right: visual + tips -->
+  <div class="p-8 rounded-3xl">
+    <div class="glass p-6 rounded-2xl">
+      <h3 class="text-lg font-bold neon">How to use</h3>
+      <ol class="mt-3 text-sm small-muted list-decimal list-inside space-y-2">
+        <li>Open this page inside Telegram (Web App or in-app browser).</li>
+        <li>Click <strong>Login with Telegram</strong>. The Telegram WebApp SDK provides signed initData.</li>
+        <li>If everything verifies, you'll be redirected to the dashboard.</li>
+      </ol>
+      <div class="mt-4 text-xs small-muted">If you open this page outside Telegram, the page will attempt to guide you to use the Telegram Web App or use the fallback redirect flow.</div>
+    </div>
+  </div>
 </div>
 
-<form id="tgForm" method="post" style="display:none;">
-    <input type="hidden" name="tg_init_data" id="tg_init_data"/>
+<!-- Hidden form for fallback if needed -->
+<form id="tgForm" method="post" action="/tg_auth.php" style="display:none;">
+  <input type="hidden" name="tg_init_data" id="tg_init_data">
 </form>
 
 <script>
+const status = document.getElementById('status');
 const tg = window.Telegram?.WebApp;
-if(!tg){
-    document.getElementById('loginBox').innerHTML = "<p class='text-red-400 font-bold text-xl'>❌ Open this page inside Telegram Web App only!</p>";
-} else {
-    tg.ready(); tg.expand();
-    document.getElementById('tgLoginBtn').addEventListener('click', ()=>{
-        const initData = tg.initData;
-        if(!initData){
-            document.getElementById('alert').innerText = "❌ Telegram initData missing!";
-            return;
-        }
-        document.getElementById('tg_init_data').value = initData;
-        document.getElementById('tgForm').submit();
-    });
+
+function showStatus(txt, isError = false){
+  status.textContent = txt;
+  status.classList.toggle('text-red-400', isError);
+  status.classList.toggle('text-green-400', !isError);
 }
+
+if (!tg) {
+  // Not inside Telegram WebApp — show friendly message but still allow fallback.
+  showStatus('⚠️ Please open this page from Telegram Web App for a secure experience. Fallback available.', true);
+}
+
+// Click handler — send initData to server via JSON POST
+document.getElementById('tgLoginBtn').addEventListener('click', async () => {
+  if (!tg) {
+    // If no Telegram WebApp, fallback to instructing user to open via tg:// or show fragment handler
+    showStatus('Opening fallback flow — please use Telegram to open the Web App.', true);
+    // Optional: redirect to bot with deep-link instructions
+    // window.location = 'https://t.me/YourBot?start=login';
+    return;
+  }
+
+  try {
+    tg.ready();
+    tg.expand();
+    const initData = tg.initData || tg.initDataUnsafe?.raw || null;
+    if (!initData) {
+      showStatus('❌ Telegram initData not found. Make sure you opened this page inside Telegram.', true);
+      return;
+    }
+
+    showStatus('Sending authentication to server…');
+
+    const res = await fetch('/tg_auth.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({init_data: initData})
+    });
+
+    const json = await res.json();
+    if (json.ok) {
+      showStatus('✅ Auth successful — redirecting…');
+      // Use absolute redirect if provided
+      window.location = json.redirect || '/index.php';
+    } else {
+      showStatus('❌ '+(json.error || 'Authentication failed'), true);
+      // If server suggests form-post fallback (rare), we can try that:
+      if (json.fallback && json.raw_init) {
+        document.getElementById('tg_init_data').value = json.raw_init;
+        document.getElementById('tgForm').submit();
+      }
+    }
+
+  } catch (err) {
+    console.error(err);
+    showStatus('❌ Network error while authenticating', true);
+  }
+});
 </script>
 </body>
 </html>
