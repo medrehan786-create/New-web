@@ -1,39 +1,71 @@
 <?php
-require __DIR__.'/config.php';
+require __DIR__ . '/config.php';
 
-if($_SERVER['REQUEST_METHOD']!=='POST' || empty($_POST['tg_data'])){
-    header('Content-Type: application/json');
-    echo json_encode(['ok'=>false,'error'=>'No Telegram data received']);
+// Return JSON always
+header('Content-Type: application/json');
+
+// Read POST JSON
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input || empty($input['init_data'])) {
+    echo json_encode(['ok'=>false,'error'=>'No init_data received']);
     exit;
 }
 
-$data = json_decode($_POST['tg_data'], true);
-if(!$data || !isset($data['id'])){
+$initData = $input['init_data'];
+
+// parse initData (query-string style) into array
+parse_str($initData, $data);
+
+// Basic checks
+if (empty($data) || !isset($data['hash'])) {
     echo json_encode(['ok'=>false,'error'=>'Invalid Telegram data']);
     exit;
 }
 
-// Optional: verify auth_date (24h)
-if(isset($data['auth_date']) && time() - (int)$data['auth_date'] > 86400){
-    echo json_encode(['ok'=>false,'error'=>'Telegram data expired']);
+// Verify signature & freshness
+if (!verifyTelegramAuth($data)) {
+    echo json_encode(['ok'=>false,'error'=>'Invalid Telegram signature']);
     exit;
 }
 
-// Upsert user
+// Telegram returns user field as JSON string inside data['user'] sometimes; prefer direct fields if present
+// Common fields: id, first_name, last_name, username, photo_url, auth_date
+$userPayload = [];
+
+// if there's a `user` JSON inside initData (some clients include), decode it
+if (!empty($data['user'])) {
+    $u = json_decode($data['user'], true);
+    if (is_array($u)) {
+        $userPayload = $u;
+    }
+}
+
+// fallback to direct fields (some initData contains them directly)
+foreach (['id','first_name','last_name','username','photo_url','auth_date'] as $k) {
+    if (!isset($userPayload[$k]) && isset($data[$k])) $userPayload[$k] = $data[$k];
+}
+
+// final validation
+if (empty($userPayload['id'])) {
+    echo json_encode(['ok'=>false,'error'=>'No user id in Telegram data']);
+    exit;
+}
+
+// Upsert user under your DB
 $user = upsert_user_from_tg([
-    'id'=>$data['id'],
-    'username'=>$data['username']??null,
-    'first_name'=>$data['first_name']??null,
-    'last_name'=>$data['last_name']??null,
-    'photo_url'=>$data['photo_url']??null,
-    'auth_date'=>$data['auth_date']??time()
+    'id'         => (string)$userPayload['id'],
+    'username'   => $userPayload['username'] ?? null,
+    'first_name' => $userPayload['first_name'] ?? null,
+    'last_name'  => $userPayload['last_name'] ?? null,
+    'photo_url'  => $userPayload['photo_url'] ?? null,
+    'auth_date'  => $userPayload['auth_date'] ?? ($data['auth_date'] ?? time())
 ]);
 
-// Set session
-$_SESSION['uid']=$user['id'];
-$_SESSION['tgid']=$user['telegram_id'];
-$_SESSION['role']=$user['role'];
+// Safe session set (config.php already started session)
+$_SESSION['uid']  = $user['id'];
+$_SESSION['tgid'] = $user['telegram_id'];
+$_SESSION['role'] = $user['role'] ?? 'user';
 
-// Redirect to index/dashboard
-header('Location:/index.php');
+// Success
+echo json_encode(['ok'=>true]);
 exit;
